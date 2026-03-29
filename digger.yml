@@ -1,0 +1,75 @@
+backend:
+  backend_type: backend.digger.cloud
+  hostname: https://cloud.digger.dev
+  auth_token: ${{ secrets.DIGGER_TOKEN }}
+
+auto_merge: false
+telemetry: true
+parallel_runs: true
+
+projects:
+  - name: dev
+    dir: terraform/environments/dev
+    workspace: default
+    terraform_version: 1.9.0
+    aws_role_to_assume:
+      state: arn:aws:iam::${{ vars.AWS_DEV_ACCOUNT_ID }}:role/GitHubActionsDeployRole
+      command: arn:aws:iam::${{ vars.AWS_DEV_ACCOUNT_ID }}:role/GitHubActionsDeployRole
+    autoplan:
+      when_modified:
+        - "terraform/modules/**/*.tf"
+        - "terraform/environments/dev/**/*.tf"
+        - "terraform/environments/dev/**/*.tfvars"
+      enabled: true
+    apply_requirements:
+      - approved
+    workflow: default
+
+  - name: prod
+    dir: terraform/environments/prod
+    workspace: default
+    terraform_version: 1.9.0
+    aws_role_to_assume:
+      state: arn:aws:iam::${{ vars.AWS_PROD_ACCOUNT_ID }}:role/GitHubActionsDeployRole
+      command: arn:aws:iam::${{ vars.AWS_PROD_ACCOUNT_ID }}:role/GitHubActionsDeployRole
+    autoplan:
+      when_modified:
+        - "terraform/modules/**/*.tf"
+        - "terraform/environments/prod/**/*.tf"
+        - "terraform/environments/prod/**/*.tfvars"
+      enabled: true
+    apply_requirements:
+      - approved
+      - mergeable
+    workflow: default
+
+workflows:
+  default:
+    plan:
+      steps:
+        - run: |
+            pip install checkov --quiet
+            checkov --directory $DIGGER_PROJECT_DIR \
+              --framework terraform \
+              --soft-fail \
+              --compact \
+              --output github_failed_only \
+              || echo "::warning::Checkov issues found — see tf-reviewer agent"
+        - init:
+            extra_args: ["-upgrade=false", "-reconfigure"]
+        - plan:
+            extra_args: ["-out=tfplan.binary", "-detailed-exitcode"]
+        - run: terraform show -no-color tfplan.binary
+
+    apply:
+      steps:
+        - run: terraform fmt -check -recursive || (echo "::error::Run terraform fmt"; exit 1)
+        - init:
+            extra_args: ["-reconfigure"]
+        - apply:
+            extra_args: ["-auto-approve", "-input=false"]
+        - run: terraform output -json > /tmp/tf-outputs-$DIGGER_PROJECT_NAME.json
+        - run: |
+            if [ -f scripts/smoke-test.sh ]; then
+              bash scripts/smoke-test.sh $DIGGER_PROJECT_NAME
+            fi
