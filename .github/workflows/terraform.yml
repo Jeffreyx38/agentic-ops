@@ -1,0 +1,133 @@
+name: Terraform CI
+
+on:
+  push:
+    branches: [dev, main]
+    paths: ["terraform/**", "digger.yml"]
+  pull_request:
+    branches: [dev, main]
+    paths: ["terraform/**", "digger.yml"]
+  issue_comment:
+    types: [created]
+
+# Cancel stale runs when Claude auto-fix pushes a correction commit
+concurrency:
+  group: terraform-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  id-token: write
+  pull-requests: write
+  issues: write
+  statuses: write
+  actions: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  TF_VERSION: "1.9.0"
+
+jobs:
+  # ── Digger plan/apply ──────────────────────────────────────────────────────
+  digger:
+    name: Digger
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issue_comment' || github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS (dev)
+        if: contains(github.event.comment.body, 'dev') || github.base_ref == 'dev'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_DEV_ACCOUNT_ID }}:role/GitHubActionsDeployRole
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configure AWS (prod)
+        if: contains(github.event.comment.body, 'prod') || github.base_ref == 'main'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_PROD_ACCOUNT_ID }}:role/GitHubActionsDeployRole
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: diggerhq/digger@v0.6
+        with:
+          digger-token: ${{ secrets.DIGGER_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+          TF_LOCK_TABLE: ${{ vars.TF_LOCK_TABLE }}
+
+  # ── Static validation ──────────────────────────────────────────────────────
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: fmt
+        run: terraform fmt -check -recursive terraform/
+
+      - name: validate
+        run: |
+          for dir in terraform/modules/*/; do
+            echo "→ $dir"
+            cd "$dir"
+            terraform init -backend=false -input=false -quiet
+            terraform validate
+            cd - > /dev/null
+          done
+
+      - uses: terraform-linters/setup-tflint@v4
+      - run: tflint --init
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: tflint
+        run: tflint --recursive terraform/
+
+      - name: Checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: terraform/
+          framework: terraform
+          config_file: .checkov.yaml
+          soft_fail: false
+          output_format: github_failed_only
+
+  # ── Terratest ──────────────────────────────────────────────────────────────
+  test:
+    name: Terratest
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: validate
+    environment: dev
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: true
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_DEV_ACCOUNT_ID }}:role/GitHubActionsDeployRole
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Terratest
+        run: cd tests && go test -v -timeout 30m ./...
+        env:
+          AWS_DEFAULT_REGION: ${{ env.AWS_REGION }}
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+          TF_LOCK_TABLE: ${{ vars.TF_LOCK_TABLE }}
