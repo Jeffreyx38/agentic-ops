@@ -1,7 +1,7 @@
 name: Claude Code — auto-fix CI failures
 
 # Fires when Terraform CI fails on a PR.
-# Claude reads the logs, diagnoses root cause, pushes a fix.
+# Claude reads the logs, diagnoses root cause, pushes a fix. 
 #
 # SAFEGUARD LAYERS:
 #   1. --max-turns 10        hard cap per session

@@ -10,7 +10,7 @@ on:
   issues:
     types: [opened, assigned]
 
-# SAFEGUARD: one session per PR — cancel stale session if a new mention arrives
+# SAFEGUARD: one session per PR — cancel stale session if a new mention arrives 
 concurrency:
   group: claude-mention-${{ github.event.issue.number || github.event.pull_request.number }}
   cancel-in-progress: true
