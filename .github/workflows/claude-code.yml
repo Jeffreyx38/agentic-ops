@@ -1,4 +1,4 @@
-name: Claude Code — @claude mentions
+name: Claude Code
 
 on:
   issue_comment:
@@ -10,9 +10,9 @@ on:
   issues:
     types: [opened, assigned]
 
-# SAFEGUARD: one session per PR — cancel stale session if a new mention arrives 
+# SAFEGUARD: one session per PR — cancel stale session if a new mention arrives
 concurrency:
-  group: claude-mention-${{ github.event.issue.number || github.event.pull_request.number }}
+  group: claude-mention-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 permissions:
