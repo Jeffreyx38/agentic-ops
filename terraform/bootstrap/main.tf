@@ -13,11 +13,24 @@ variable "env" {
   }
 }
 
-variable "aws_region"           { type = string; default = "us-east-1" }
-variable "github_repo"          { type = string; description = "org/repo e.g. acme/infrastructure" }
-variable "create_oidc_provider" { type = bool;   default = true }
+variable "aws_region" {
+  type    = string
+  default = "us-east-1"
+}
 
-provider "aws" { region = var.aws_region }
+variable "github_repo" {
+  type        = string
+  description = "GitHub repo in org/repo format e.g. acme/infrastructure"
+}
+
+variable "create_oidc_provider" {
+  type    = bool
+  default = true
+}
+
+provider "aws" {
+  region = var.aws_region
+}
 
 data "aws_caller_identity" "current" {}
 
@@ -30,7 +43,12 @@ locals {
 resource "aws_s3_bucket" "state" {
   bucket        = local.bucket_name
   force_destroy = false
-  tags          = { Environment = var.env, ManagedBy = "terraform-bootstrap", Purpose = "terraform-state" }
+
+  tags = {
+    Environment = var.env
+    ManagedBy   = "terraform-bootstrap"
+    Purpose     = "terraform-state"
+  }
 }
 
 resource "aws_s3_bucket_versioning" "state" {
@@ -68,9 +86,21 @@ resource "aws_dynamodb_table" "locks" {
   name         = local.table_name
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "LockID"
-  attribute    { name = "LockID"; type = "S" }
-  point_in_time_recovery { enabled = true }
-  tags         = { Environment = var.env, ManagedBy = "terraform-bootstrap", Purpose = "terraform-state-locking" }
+
+  attribute {
+    name = "LockID"
+    type = "S"
+  }
+
+  point_in_time_recovery {
+    enabled = true
+  }
+
+  tags = {
+    Environment = var.env
+    ManagedBy   = "terraform-bootstrap"
+    Purpose     = "terraform-state-locking"
+  }
 }
 
 # ── GitHub Actions OIDC ────────────────────────────────────────────────────────
@@ -112,18 +142,77 @@ resource "aws_iam_role" "github_actions" {
 resource "aws_iam_role_policy" "deploy" {
   name = "TerraformDeployPolicy"
   role = aws_iam_role.github_actions.id
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      { Effect = "Allow"; Action = ["s3:*"]; Resource = "*" },
-      { Effect = "Allow"; Action = ["ssm:GetParameter*", "ssm:PutParameter", "ssm:DeleteParameter", "ssm:AddTagsToResource"]; Resource = "arn:aws:ssm:*:${data.aws_caller_identity.current.account_id}:parameter/app/*" },
-      { Effect = "Allow"; Action = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"]; Resource = [aws_s3_bucket.state.arn, "${aws_s3_bucket.state.arn}/*"] },
-      { Effect = "Allow"; Action = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"]; Resource = aws_dynamodb_table.locks.arn },
-      { Effect = "Allow"; Action = ["iam:CreateRole", "iam:DeleteRole", "iam:AttachRolePolicy", "iam:DetachRolePolicy", "iam:GetRole", "iam:PassRole", "iam:TagRole"]; Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/*" }
+      {
+        Effect   = "Allow"
+        Action   = ["s3:*"]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter",
+          "ssm:GetParameters",
+          "ssm:GetParametersByPath",
+          "ssm:PutParameter",
+          "ssm:DeleteParameter",
+          "ssm:AddTagsToResource"
+        ]
+        Resource = "arn:aws:ssm:*:${data.aws_caller_identity.current.account_id}:parameter/app/*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          aws_s3_bucket.state.arn,
+          "${aws_s3_bucket.state.arn}/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:DeleteItem"
+        ]
+        Resource = aws_dynamodb_table.locks.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "iam:CreateRole",
+          "iam:DeleteRole",
+          "iam:AttachRolePolicy",
+          "iam:DetachRolePolicy",
+          "iam:GetRole",
+          "iam:PassRole",
+          "iam:TagRole"
+        ]
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/*"
+      }
     ]
   })
 }
 
-output "state_bucket_name"        { value = aws_s3_bucket.state.id }
-output "lock_table_name"          { value = aws_dynamodb_table.locks.name }
-output "github_actions_role_arn"  { value = aws_iam_role.github_actions.arn }
+output "state_bucket_name" {
+  value       = aws_s3_bucket.state.id
+  description = "Set as TF_STATE_BUCKET in GitHub Actions variables"
+}
+
+output "lock_table_name" {
+  value       = aws_dynamodb_table.locks.name
+  description = "Set as TF_LOCK_TABLE in GitHub Actions variables"
+}
+
+output "github_actions_role_arn" {
+  value       = aws_iam_role.github_actions.arn
+  description = "IAM role assumed by GitHub Actions via OIDC"
+}
