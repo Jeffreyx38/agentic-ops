@@ -9,6 +9,7 @@ on:
     types: [submitted]
   issues:
     types: [opened, assigned]
+  workflow_dispatch:  # Makes this workflow visible in the GitHub Actions sidebar
 
 # SAFEGUARD: one session per PR — cancel stale session if a new mention arrives
 concurrency:
