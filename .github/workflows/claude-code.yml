@@ -11,7 +11,6 @@ on:
     types: [opened, assigned]
   workflow_dispatch:
 
-# SAFEGUARD: one session per PR — cancel stale session if a new mention arrives
 concurrency:
   group: claude-mention-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
@@ -20,9 +19,8 @@ jobs:
   claude:
     name: Claude Code
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
-    # id-token MUST be at job level — workflow-level permissions alone
-    # are not sufficient for claude-code-action's OIDC GitHub token flow
     permissions:
       contents: write
       pull-requests: write
@@ -66,11 +64,14 @@ jobs:
         continue-on-error: true
 
       - name: Run Claude Code
+        timeout-minutes: 10
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           additional_permissions: |
             actions: read
+          timeout_minutes: "10"
+          show_full_output: "true"
           claude_args: |
             --max-turns 20
             --allowedTools "Bash(terraform:*),Bash(tflint:*),Bash(checkov:*),Bash(aws:*),Bash(git:*),Bash(gh:*),Edit,Replace,View,GlobTool,GrepTool,mcp__github_ci__*"
