@@ -13,7 +13,7 @@ on:
   workflow_run:
     workflows: ["Terraform CI"]
     types: [completed]
-  workflow_dispatch:  # Makes this workflow visible in the GitHub Actions sidebar
+  workflow_dispatch:
 
 # SAFEGUARD 2: one auto-fix session per PR — cancel if one is already running
 concurrency:
@@ -25,7 +25,6 @@ jobs:
     name: Auto-fix CI failure
     runs-on: ubuntu-latest
 
-    # id-token MUST be at job level for claude-code-action's OIDC token flow
     permissions:
       contents: write
       pull-requests: write
@@ -65,7 +64,6 @@ jobs:
           COMMIT_MSG="${{ github.event.workflow_run.head_commit.message }}"
           if echo "$COMMIT_MSG" | grep -q "\[skip-autofix\]"; then
             echo "SKIP=true" >> "$GITHUB_OUTPUT"
-            echo "Skipping: [skip-autofix] found in commit message"
           else
             echo "SKIP=false" >> "$GITHUB_OUTPUT"
           fi
@@ -110,82 +108,26 @@ jobs:
             A Terraform CI job just failed on PR #${{ github.event.workflow_run.pull_requests[0].number }}.
             This is attempt number ${{ github.run_attempt }}.
 
-            ═══════════════════════════════════════════════════════
-            SAFEGUARD — READ BEFORE DOING ANYTHING
-            ═══════════════════════════════════════════════════════
+            STOP IMMEDIATELY and post a [needs-human] comment if the logs contain ANY of these:
+              - AccessDenied, UnauthorizedOperation, 403, 401
+              - "provider version", "unsupported argument", "deprecated argument"
+              - "quota exceeded", "LimitExceeded", "Throttling", "TooManyRequests"
+              - "connection refused", "network timeout"
 
-            Step 1: Read the failed CI job logs.
+            If attempt >= 2 and the same error recurs, post [needs-human] and add label "no-autofix". STOP.
 
-            Step 2: Check for UNFIXABLE error patterns.
-            If ANY of these appear, escalate — never attempt a code fix:
+            For fixable failures (fmt, validate, tflint, checkov):
+            1. Read the CI logs to identify the exact failure
+            2. Fix only the specific file and line that failed
+            3. Run the check locally to confirm the fix works
+            4. Commit: "fix: [auto] <what-was-fixed>"
+            5. Post a brief PR comment explaining what was fixed
 
-              • AccessDenied, UnauthorizedOperation, 403, 401
-                → IAM / credentials issue. Not a code problem.
-
-              • "provider version", "unsupported argument", "deprecated argument"
-                → Provider breaking change. Requires human decision.
-
-              • "quota exceeded", "LimitExceeded", "Throttling", "TooManyRequests"
-                → AWS account limit. No code change will fix this.
-
-              • "context deadline exceeded", "connection refused", "network timeout"
-                → Network / infra issue. Not a code problem.
-
-              • "ANTHROPIC_API_KEY", "authentication", "invalid API key"
-                → Missing secret. Not a code problem.
-
-            If unfixable:
-              1. Post PR comment: "🚨 [needs-human] Auto-fix stopped: <error type>.
-                 Evidence: <log snippet max 3 lines>.
-                 Required action: <what a human must do>."
-              2. Run: gh pr edit ${{ github.event.workflow_run.pull_requests[0].number }} --add-label "no-autofix"
-              3. STOP. No code changes.
-
-            Step 3: Check attempt count.
-            Attempt = ${{ github.run_attempt }}.
-            If attempt >= 2 and the same error recurs:
-              - Post: "🚨 [needs-human] Auto-fix attempt 2 failed. Human review required."
-              - Run: gh pr edit ${{ github.event.workflow_run.pull_requests[0].number }} --add-label "no-autofix"
-              - STOP.
-
-            ═══════════════════════════════════════════════════════
-            FIXABLE FAILURES — only proceed if checks above pass
-            ═══════════════════════════════════════════════════════
-
-            terraform fmt:
-              Fix:   terraform fmt -recursive terraform/
-              Check: terraform fmt -check -recursive terraform/
-              Commit: "fix: [auto] terraform fmt"
-
-            terraform validate:
-              Fix only the specific file and line from the error.
-              Check: cd terraform/modules/<n> && terraform init -backend=false && terraform validate
-              Commit: "fix: [auto] terraform validate — <what was wrong>"
-
-            tflint:
-              Fix only the rule shown in the log.
-              Check: tflint --recursive terraform/
-              Commit: "fix: [auto] tflint — <rule name>"
-
-            checkov:
-              Fix the specific check ID from the log. Never add to skip list.
-              Check: checkov --directory terraform/ --framework terraform --compact
-              Commit: "fix: [auto] checkov <check-id> — <resource>"
-
-            After a fix: post a brief PR comment explaining what failed and what was fixed.
-
-            ═══════════════════════════════════════════════════════
-            ABSOLUTE RULES
-            ═══════════════════════════════════════════════════════
-            Never run terraform apply, terraform destroy, or terraform import.
+            Never run terraform apply or destroy.
             Never modify backend.tf, terraform/bootstrap/, or .github/workflows/.
             Never push to main or dev.
-            Never add checks to .checkov.yaml skip list.
-            If unsure, escalate — do not guess.
 
-          # SAFEGUARD 1: 10-turn hard cap per session
           claude_args: |
             --max-turns 10
-            --dangerously-skip-permissions
             --allowedTools "Bash(terraform:*),Bash(tflint:*),Bash(checkov:*),Bash(git:*),Bash(gh:*),Edit,Replace,View,GlobTool,GrepTool,mcp__github_ci__get_ci_status,mcp__github_ci__get_workflow_run_details,mcp__github_ci__download_job_log,mcp__github_comment__*"
             --disallowedTools "AskUserQuestion,WebSearch,WebFetch,CronCreate,CronDelete,CronList,RemoteTrigger,NotebookEdit"

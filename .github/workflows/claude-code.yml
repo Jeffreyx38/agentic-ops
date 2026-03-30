@@ -11,10 +11,9 @@ on:
     types: [opened, assigned]
   workflow_dispatch:
 
+# Each comment gets its own concurrency slot — prevents a new trigger
+# from canceling an already-running session on the same PR.
 concurrency:
-  # Use the comment ID so each unique comment gets its own concurrency slot.
-  # This prevents a new @claude comment from canceling an in-progress session
-  # triggered by an earlier comment.
   group: claude-mention-${{ github.event.comment.id || github.event.review.id || github.run_id }}
   cancel-in-progress: false
 
@@ -31,6 +30,7 @@ jobs:
       actions: read
       id-token: write
 
+    # Exclude bot actors so Claude's own response comments don't re-trigger this
     if: |
       github.actor != 'claude[bot]' &&
       github.actor != 'github-actions[bot]' &&
@@ -77,15 +77,6 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           additional_permissions: |
             actions: read
-          show_full_output: "true"
-          settings: |
-            {
-              "permissions": {
-                "allow": ["Bash", "Edit", "Replace", "View", "Read", "Glob", "Grep"],
-                "deny": ["AskUserQuestion", "WebSearch", "WebFetch", "CronCreate", "CronDelete", "CronList", "RemoteTrigger", "NotebookEdit"]
-              },
-              "enableAllProjectMcpServers": true
-            }
           claude_args: |
             --max-turns 20
             --allowedTools "Bash(terraform:*),Bash(tflint:*),Bash(checkov:*),Bash(aws:*),Bash(git:*),Bash(gh:*),Edit,Replace,View,GlobTool,GrepTool,mcp__github_ci__*,mcp__github_comment__*"
