@@ -74,4 +74,5 @@ jobs:
           claude_args: |
             --max-turns 20
             --dangerously-skip-permissions
-            --allowedTools "Bash(terraform:*),Bash(tflint:*),Bash(checkov:*),Bash(aws:*),Bash(git:*),Bash(gh:*),Edit,Replace,View,GlobTool,GrepTool,mcp__github_ci__*"
+            --allowedTools "Bash(terraform:*),Bash(tflint:*),Bash(checkov:*),Bash(aws:*),Bash(git:*),Bash(gh:*),Edit,Replace,View,GlobTool,GrepTool,mcp__github_ci__*,mcp__github_comment__*"
+            --disallowedTools "AskUserQuestion,WebSearch,WebFetch,CronCreate,CronDelete,CronList,RemoteTrigger,NotebookEdit"
