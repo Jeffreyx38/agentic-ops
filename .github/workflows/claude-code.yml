@@ -73,5 +73,4 @@ jobs:
             actions: read
           claude_args: |
             --max-turns 20
-            --allowedTools "Bash(terraform:*),Bash(tflint:*),Bash(checkov:*),Bash(aws:*),Bash(git:*),Bash(gh:*),Edit,Replace,View,GlobTool,GrepTool,mcp__terraform__*,mcp__aws-docs__*,mcp__github_ci__*"
-            --mcp-config '{"mcpServers":{"terraform":{"command":"npx","args":["-y","@hashicorp/terraform-mcp-server"],"env":{}},"aws-docs":{"command":"uvx","args":["awslabs.aws-documentation-mcp-server@latest"],"env":{}}}}'
+            --allowedTools "Bash(terraform:*),Bash(tflint:*),Bash(checkov:*),Bash(aws:*),Bash(git:*),Bash(gh:*),Edit,Replace,View,GlobTool,GrepTool,mcp__github_ci__*"

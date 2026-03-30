@@ -187,4 +187,3 @@ jobs:
           claude_args: |
             --max-turns 10
             --allowedTools "Bash(terraform:*),Bash(tflint:*),Bash(checkov:*),Bash(git:*),Bash(gh:*),Edit,Replace,View,GlobTool,GrepTool,mcp__github_ci__get_ci_status,mcp__github_ci__get_workflow_run_details,mcp__github_ci__download_job_log"
-            --mcp-config '{"mcpServers":{"terraform":{"command":"npx","args":["-y","@hashicorp/terraform-mcp-server"],"env":{}}}}'
