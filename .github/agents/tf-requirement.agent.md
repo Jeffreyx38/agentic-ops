@@ -20,10 +20,11 @@ mcp-servers:
     command: npx
     args: ["-y", "@hashicorp/terraform-mcp-server"]
     tools:
-      - resolveProviderDocID
-      - getProviderDocs
-      - searchModules
-      - getModuleDetails
+      - search_providers
+      - get_provider_details
+      - get_latest_provider_version
+      - search_modules
+      - get_module_details
 
   aws-docs-mcp:
     type: stdio
@@ -79,8 +80,8 @@ Use the `github` tool to fetch the PR title and body. Extract:
 
 For each resource type call:
 ```
-resolveProviderDocID("aws", "<resource_type>")
-getProviderDocs(<doc_id>)
+search_providers("aws", "<resource_type>")
+get_provider_details(<doc_id>)
 ```
 
 Use ONLY attribute names returned by the MCP server. Note any resource splits
