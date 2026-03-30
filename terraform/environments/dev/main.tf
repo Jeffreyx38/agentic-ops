@@ -31,5 +31,5 @@ module "s3_media" {
   tags        = { Team = "platform" }
 }
 
-output "media_bucket_name" { value = module.s3_media.bucket_name }
-output "media_bucket_arn"  { value = module.s3_media.bucket_arn }
+# output "media_bucket_name" { value = module.s3_media.bucket_name }
+# output "media_bucket_arn"  { value = module.s3_media.bucket_arn }
