@@ -12,8 +12,11 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: claude-mention-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: true
+  # Use the comment ID so each unique comment gets its own concurrency slot.
+  # This prevents a new @claude comment from canceling an in-progress session
+  # triggered by an earlier comment.
+  group: claude-mention-${{ github.event.comment.id || github.event.review.id || github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   claude:
@@ -29,10 +32,14 @@ jobs:
       id-token: write
 
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (github.event.action == 'assigned' || contains(github.event.issue.body, '@claude')))
+      github.actor != 'claude[bot]' &&
+      github.actor != 'github-actions[bot]' &&
+      (
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+        (github.event_name == 'issues' && (github.event.action == 'assigned' || contains(github.event.issue.body, '@claude')))
+      )
 
     steps:
       - uses: actions/checkout@v4
@@ -62,21 +69,6 @@ jobs:
           role-to-assume: arn:aws:iam::${{ vars.AWS_DEV_ACCOUNT_ID }}:role/GitHubActionsDeployRole
           aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
         continue-on-error: true
-
-      # Pre-create Claude settings with bypassPermissions so the action
-      # cannot override it with acceptEdits (which requires a TTY)
-      - name: Configure Claude settings for headless CI
-        run: |
-          mkdir -p ~/.claude
-          cat > ~/.claude/settings.json << 'SETTINGS'
-          {
-            "permissions": {
-              "allow": ["Bash", "Edit", "Replace", "View", "Read", "Glob", "Grep"],
-              "deny": ["AskUserQuestion", "WebSearch", "WebFetch", "CronCreate", "CronDelete", "CronList", "RemoteTrigger", "NotebookEdit"]
-            },
-            "enableAllProjectMcpServers": true
-          }
-          SETTINGS
 
       - name: Run Claude Code
         timeout-minutes: 10
