@@ -31,5 +31,14 @@ module "s3_media" {
   tags        = { Team = "platform" }
 }
 
+module "dynamodb_sessions" {
+  source      = "../../modules/dynamodb"
+  env         = "dev"
+  name_prefix = "sessions"
+  tags        = { Team = "platform" }
+}
+
 output "media_bucket_name" { value = module.s3_media.bucket_name }
-output "media_bucket_arn"  { value = module.s3_media.bucket_arn }
+output "media_bucket_arn" { value = module.s3_media.bucket_arn }
+output "sessions_table_name" { value = module.dynamodb_sessions.table_name }
+output "sessions_table_arn" { value = module.dynamodb_sessions.table_arn }
