@@ -91,3 +91,4 @@ resource "aws_ssm_parameter" "bucket_name" {
   value = aws_s3_bucket.this.id
   tags  = local.common_tags
 }
+
