@@ -65,6 +65,7 @@ jobs:
         with:
           no-backend: true
           setup-aws: false
+          disable-locking: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
