@@ -7,9 +7,6 @@ projects:
     dir: terraform/environments/dev
     workspace: default
     terraform_version: 1.9.0
-    aws_role_to_assume:
-      state: arn:aws:iam::${{ vars.AWS_DEV_ACCOUNT_ID }}:role/GitHubActionsDeployRole
-      command: arn:aws:iam::${{ vars.AWS_DEV_ACCOUNT_ID }}:role/GitHubActionsDeployRole
     autoplan:
       when_modified:
         - "terraform/modules/**/*.tf"
@@ -24,9 +21,6 @@ projects:
     dir: terraform/environments/prod
     workspace: default
     terraform_version: 1.9.0
-    aws_role_to_assume:
-      state: arn:aws:iam::${{ vars.AWS_PROD_ACCOUNT_ID }}:role/GitHubActionsDeployRole
-      command: arn:aws:iam::${{ vars.AWS_PROD_ACCOUNT_ID }}:role/GitHubActionsDeployRole
     autoplan:
       when_modified:
         - "terraform/modules/**/*.tf"
