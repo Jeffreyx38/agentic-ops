@@ -78,6 +78,6 @@ jobs:
           additional_permissions: |
             actions: read
           claude_args: |
-            --max-turns 20
-            --allowedTools "Bash(terraform:*),Bash(tflint:*),Bash(checkov:*),Bash(aws:*),Bash(git:*),Bash(gh:*),Edit,Replace,View,GlobTool,GrepTool,mcp__github_ci__*,mcp__github_comment__*"
+            --max-turns 40
+            --allowedTools "Bash(terraform:*),Bash(tflint:*),Bash(checkov:*),Bash(aws:*),Bash(git:*),Bash(gh:*),Edit,Replace,Write,View,GlobTool,GrepTool,mcp__github_ci__*,mcp__github_comment__*"
             --disallowedTools "AskUserQuestion,WebSearch,WebFetch,CronCreate,CronDelete,CronList,RemoteTrigger,NotebookEdit"
