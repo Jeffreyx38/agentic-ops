@@ -20,6 +20,10 @@ resource "aws_s3_bucket" "this" {
   bucket        = local.bucket_name
   force_destroy = var.env != "prod"
   tags          = local.common_tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_s3_bucket_versioning" "this" {
@@ -60,6 +64,17 @@ resource "aws_s3_bucket_lifecycle_configuration" "this" {
     filter {}
     noncurrent_version_expiration {
       noncurrent_days = var.env == "prod" ? 30 : 7
+    }
+  }
+
+  dynamic "rule" {
+    for_each = var.lifecycle_expire_days != null ? [var.lifecycle_expire_days] : []
+    content {
+      id     = "expire-current-objects"
+      status = "Enabled"
+      expiration {
+        days = rule.value
+      }
     }
   }
 }

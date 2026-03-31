@@ -21,3 +21,9 @@ variable "tags" {
   default     = {}
   description = "Additional tags merged onto all resources"
 }
+
+variable "lifecycle_expire_days" {
+  type        = number
+  default     = null
+  description = "Days after which current-version objects expire. Null disables the rule (backward-compatible with existing module calls)."
+}

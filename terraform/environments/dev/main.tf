@@ -41,3 +41,22 @@ output "media_bucket_arn" {
   value       = module.s3_media.bucket_arn
   description = "S3 media bucket ARN"
 }
+
+
+module "s3_logs" {
+  source                = "../../modules/s3"
+  env                   = "dev"
+  name_prefix           = "logs"
+  lifecycle_expire_days = 30
+  tags                  = { Team = "platform" }
+}
+
+output "logs_bucket_name" {
+  value       = module.s3_logs.bucket_name
+  description = "S3 logs bucket name"
+}
+
+output "logs_bucket_arn" {
+  value       = module.s3_logs.bucket_arn
+  description = "S3 logs bucket ARN"
+}
