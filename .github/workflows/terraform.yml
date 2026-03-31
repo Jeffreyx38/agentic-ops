@@ -64,8 +64,8 @@ jobs:
       - uses: diggerhq/digger@vLatest
         with:
           digger-token: ${{ secrets.DIGGER_TOKEN }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
           TF_LOCK_TABLE: ${{ vars.TF_LOCK_TABLE }}
 
