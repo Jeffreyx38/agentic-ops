@@ -18,8 +18,9 @@ provider "aws" {
 }
 
 variable "aws_region" {
-  type    = string
-  default = "us-east-1"
+  type        = string
+  default     = "us-east-1"
+  description = "AWS region for all resources in this environment"
 }
 
 module "s3_media" {
@@ -29,5 +30,12 @@ module "s3_media" {
   tags        = { Team = "platform" }
 }
 
-output "media_bucket_name" { value = module.s3_media.bucket_name }
-output "media_bucket_arn" { value = module.s3_media.bucket_arn }
+output "media_bucket_name" {
+  value       = module.s3_media.bucket_name
+  description = "S3 media bucket name"
+}
+
+output "media_bucket_arn" {
+  value       = module.s3_media.bucket_arn
+  description = "S3 media bucket ARN"
+}
