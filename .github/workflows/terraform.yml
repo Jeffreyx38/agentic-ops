@@ -234,7 +234,10 @@ jobs:
           role-to-assume: arn:aws:iam::${{ vars.AWS_DEV_ACCOUNT_ID }}:role/GitHubActionsDeployRole
           aws-region: ${{ env.AWS_REGION }}
       - name: Terratest
-        run: cd tests && go test -v -timeout 30m ./...
+        run: |
+          cd tests
+          go mod tidy
+          go test -v -timeout 30m ./...
         env:
           AWS_DEFAULT_REGION: ${{ env.AWS_REGION }}
           TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
