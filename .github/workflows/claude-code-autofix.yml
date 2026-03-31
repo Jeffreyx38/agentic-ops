@@ -91,9 +91,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install Checkov
-        if: steps.check-label.outputs.SKIP != 'true' && steps.check-commit.outputs.SKIP != 'true'
-        run: pip install checkov --quiet
 
       - name: Claude Code — auto-fix
         if: steps.check-label.outputs.SKIP != 'true' && steps.check-commit.outputs.SKIP != 'true'
@@ -116,7 +113,7 @@ jobs:
 
             If attempt >= 2 and the same error recurs, post [needs-human] and add label "no-autofix". STOP.
 
-            For fixable failures (fmt, validate, tflint, checkov):
+            For fixable failures (fmt, validate, tflint):
             1. Read the CI logs to identify the exact failure
             2. Fix only the specific file and line that failed
             3. Run the check locally to confirm the fix works
@@ -129,5 +126,5 @@ jobs:
 
           claude_args: |
             --max-turns 10
-            --allowedTools "Bash(terraform:*),Bash(tflint:*),Bash(checkov:*),Bash(git:*),Bash(gh:*),Edit,Replace,View,GlobTool,GrepTool,mcp__github_ci__get_ci_status,mcp__github_ci__get_workflow_run_details,mcp__github_ci__download_job_log,mcp__github_comment__*"
+            --allowedTools "Bash(terraform:*),Bash(tflint:*),Bash(git:*),Bash(gh:*),Edit,Replace,View,GlobTool,GrepTool,mcp__github_ci__get_ci_status,mcp__github_ci__get_workflow_run_details,mcp__github_ci__download_job_log,mcp__github_comment__*"
             --disallowedTools "AskUserQuestion,WebSearch,WebFetch,CronCreate,CronDelete,CronList,RemoteTrigger,NotebookEdit"
