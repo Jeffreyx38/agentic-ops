@@ -28,10 +28,13 @@ func TestS3Module(t *testing.T) {
 	namePrefix := fmt.Sprintf("test-%s", uniqueID)
 
 	opts := &terraform.Options{
-		TerraformDir: "../terraform/environments/dev",
+		// Test the module directly, not the environment root.
+		// Environment roots don't accept env/name_prefix as variables.
+		TerraformDir: "../terraform/modules/s3",
 		Vars: map[string]interface{}{
 			"env":         "test",
 			"name_prefix": namePrefix,
+			"tags":        map[string]string{"Team": "platform"},
 		},
 		BackendConfig: map[string]interface{}{
 			"bucket":         os.Getenv("TF_STATE_BUCKET"),
@@ -49,12 +52,12 @@ func TestS3Module(t *testing.T) {
 	defer terraform.Destroy(t, opts)
 	terraform.InitAndApply(t, opts)
 
-	bucketName := terraform.Output(t, opts, "media_bucket_name")
+	bucketName := terraform.Output(t, opts, "bucket_name")
 	require.NotEmpty(t, bucketName)
 
-	sess  := session.Must(session.NewSession(&aws.Config{Region: aws.String(region)}))
-	s3c   := s3.New(sess)
-	ssmc  := ssm.New(sess)
+	sess := session.Must(session.NewSession(&aws.Config{Region: aws.String(region)}))
+	s3c  := s3.New(sess)
+	ssmc := ssm.New(sess)
 
 	t.Run("versioning_enabled", func(t *testing.T) {
 		out, err := s3c.GetBucketVersioning(&s3.GetBucketVersioningInput{Bucket: aws.String(bucketName)})
