@@ -1,4 +1,4 @@
-module github.com/your-org/devops-pipeline/tests
+module github.com/Jeffreyx38/agentic-ops/tests
 
 go 1.22
 
