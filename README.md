@@ -1,17 +1,17 @@
 # Hybrid AI DevOps Pipeline
 
 A production-grade Infrastructure-as-Code pipeline combining GitHub Copilot
-custom agents, Claude Code, and Digger to deploy AWS resources from
-plain-English requirements — with zero always-on servers and three explicit
-human approval gates.
+custom agents and Claude Code to deploy AWS resources from plain-English
+requirements — with zero always-on servers and explicit human approval gates.
 
 ```
 You write PR → tf-requirement (Copilot) validates spec
   → You approve → @claude implements HCL
-    → CI auto-repairs failures (safeguarded)
-      → tf-reviewer (Copilot) gates security + cost
-        → digger plan → You review → digger apply
-          → @claude verifies deployment → promote to prod
+    → CI: fmt · validate · tflint · plan
+      → tf-reviewer (Copilot) gates cost
+        → Merge to dev → terraform apply (auto)
+          → @claude verifies deployment
+            → Promote to prod (requires approval)
 ```
 
 ---
@@ -21,11 +21,10 @@ You write PR → tf-requirement (Copilot) validates spec
 | Component | Role | System |
 |-----------|------|--------|
 | `tf-requirement.agent.md` | Parse PR → validated HCL spec | Copilot |
-| `tf-reviewer.agent.md` | Checkov + Infracost security gate | Copilot |
+| `tf-reviewer.agent.md` | Infracost cost gate | Copilot |
 | `claude-code.yml` | @claude mention handler | Claude Code |
 | `claude-code-autofix.yml` | CI auto-repair (4 safeguard layers) | Claude Code |
-| `terraform.yml` | fmt · validate · tflint · Checkov · Terratest | GitHub Actions |
-| `digger.yml` | Terraform plan/apply orchestration | Digger |
+| `terraform.yml` | fmt · validate · tflint · plan · apply | GitHub Actions |
 | `CLAUDE.md` | Claude Code system prompt + Terraform rules | — |
 
 **Zero always-on infrastructure.** Everything runs on ephemeral GitHub Actions
@@ -38,10 +37,9 @@ module, ~$0.05/month). OIDC authentication — no static AWS credentials stored.
 
 | Tool | Version |
 |------|---------|
-| Terraform / OpenTofu | ≥ 1.6 |
+| Terraform | ≥ 1.6 |
 | GitHub Copilot | Business or Enterprise |
 | AWS CLI | v2 |
-| Go (Terratest) | ≥ 1.22 |
 | gh CLI | latest |
 
 ---
@@ -82,20 +80,14 @@ TF_LOCK_TABLE        = tf-locks-dev
 
 **Settings → Secrets:**
 ```
-DIGGER_TOKEN         = (from digger.dev after installing the GitHub App)
 ANTHROPIC_API_KEY    = sk-ant-...
 INFRACOST_API_KEY    = ico-...  (free at infracost.io)
 ```
 
-### 3 — Install Digger GitHub App
-
-Go to https://digger.dev, install the GitHub App on your repo, and copy
-the `DIGGER_TOKEN` to your repo secrets.
-
-### 4 — Install Claude Code GitHub App
+### 3 — Install Claude Code GitHub App
 
 ```bash
-# Option A — from your terminal (recommended for Anthropic API users)
+# Option A — from your terminal
 claude
 /install-github-app
 
@@ -104,19 +96,23 @@ claude
 # Then add ANTHROPIC_API_KEY to repo secrets
 ```
 
-### 5 — Configure MCP servers for Copilot
+### 4 — Configure MCP servers for Copilot
 
-**Settings → Copilot → MCP servers:**
+**Settings → Copilot → Coding agent → MCP servers:**
 ```json
 {
   "mcpServers": {
     "terraform": {
+      "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@hashicorp/terraform-mcp-server"]
+      "args": ["-y", "@hashicorp/terraform-mcp-server"],
+      "tools": ["search_providers", "get_provider_details", "get_latest_provider_version", "search_modules", "get_module_details"]
     },
     "aws-docs": {
+      "type": "stdio",
       "command": "uvx",
-      "args": ["awslabs.aws-documentation-mcp-server@latest"]
+      "args": ["awslabs.aws-documentation-mcp-server@latest"],
+      "tools": ["search_documentation", "read_documentation", "recommend"]
     }
   }
 }
@@ -127,19 +123,19 @@ claude
 INFRACOST_API_KEY = ico-...
 ```
 
-### 6 — Configure GitHub Environments
+### 5 — Configure GitHub Environments
 
 **Settings → Environments:**
-- `dev` — no protection rules (auto-deploy on merge)
-- `prod` — add Required reviewers (yourself or your team)
+- `dev` — no protection rules (auto-deploy on merge to dev)
+- `prod` — add Required reviewers (yourself or your team), branch: main only
 
-### 7 — Create GitHub labels
+### 6 — Create GitHub labels
 
 ```bash
 bash scripts/setup-labels.sh
 ```
 
-### 8 — Commit and merge
+### 7 — Merge agents to main
 
 The agent files in `.github/agents/` appear in the Copilot dropdown
 immediately after merging to the default branch.
@@ -150,50 +146,46 @@ immediately after merging to the default branch.
 
 ### Deploy a new AWS resource
 
-1. **Open a PR** using the `terraform_resource` template:
+1. **Open a PR** to `dev` using the `terraform_resource` template:
    ```
-   Title: feat: deploy S3 bucket for media uploads
+   Title: feat: deploy S3 bucket for application logs
 
    What: S3 bucket
    Config: versioning on, AES-256 encryption, no public access,
-           lifecycle: abort incomplete MPU after 7 days
+           lifecycle: expire objects after 90 days
    Environments: dev and prod
    Outputs: bucket ARN and name to SSM
    ```
 
-2. **tf-requirement agent** activates, queries the Terraform MCP server
-   for live provider schemas, and posts a validated HCL spec.
+2. **Assign tf-requirement agent** — in the PR's Assignees sidebar select
+   `tf-requirement`. It queries the Terraform MCP server for live provider
+   schemas and posts a validated HCL spec as a PR comment.
 
-3. **Review the spec.** Click **"Approve & implement"** in the Copilot panel.
+3. **Review the spec.** Comment `@claude Implement the Terraform spec from
+   the requirement-validated comment above.` to trigger implementation.
 
-4. **Claude Code** implements the Terraform module, runs `terraform validate`
-   and `tflint`, and opens a PR to `dev`.
+4. **Claude Code** implements the Terraform module, runs `terraform fmt`,
+   `validate`, and `tflint`, and commits to the PR branch.
 
-5. **GitHub Actions** runs `fmt → validate → tflint → Checkov → Terratest`.
-   If any step fails, Claude Code auto-fixes it silently. If the failure is
-   unfixable (IAM, provider version, AWS quota), Claude adds `no-autofix`
-   and posts `[needs-human]`.
+5. **GitHub Actions** runs `validate → plan`. The plan output is posted
+   as a PR comment. If any step fails, Claude Code auto-fixes it.
 
-6. **tf-reviewer agent** posts a Checkov + Infracost report. On a clean
-   review it approves the PR and posts `@claude verify...` for post-deploy.
+6. **Review the plan**, approve the PR, and merge to `dev`.
 
-7. Comment `digger plan` → review the output → comment `digger apply`.
+7. **terraform apply runs automatically** on merge to `dev`.
 
-8. **Claude Code** verifies the deployed resources and posts a pass/fail
-   checklist.
+8. **Claude Code verifies** — comment `@claude verify the deployed resources`
+   and it checks the deployed resources against the spec.
 
-9. **Promote to prod:** Open a PR from `dev` → `main`. GitHub Environment
-   approval is required before `digger apply` runs against prod.
+9. **Promote to prod** — open a PR from `dev` → `main`. GitHub Environment
+   protection requires your approval before the prod apply runs.
 
 ### PR comment commands
 
 | Command | Effect |
 |---------|--------|
-| `digger plan` | Run `terraform plan` for changed projects |
-| `digger plan -p dev` | Plan a specific project |
-| `digger apply` | Apply after plan review (requires PR approval) |
-| `digger unlock` | Release a stuck state lock |
 | `@claude <task>` | Ask Claude Code to implement, fix, explain, or verify |
+| `@claude verify the deployed resources` | Post-deploy assertion checklist |
 
 ### Auto-fix safeguards
 
@@ -211,17 +203,52 @@ Include `[skip-autofix]` in a commit message to skip auto-fix for that push.
 
 ---
 
+## Running Terratest manually
+
+Terratest is not run in CI — it deploys real AWS resources and is too slow
+and expensive for every PR. Run it manually when making significant changes
+to a module:
+
+```bash
+# Prerequisites: AWS credentials with dev account access
+export AWS_PROFILE=dev
+export AWS_DEFAULT_REGION=us-east-1
+export TF_STATE_BUCKET=tf-state-dev-<account_id>
+export TF_LOCK_TABLE=tf-locks-dev
+
+cd tests
+go mod tidy
+go test -v -timeout 30m -run TestS3Module ./...
+```
+
+The test deploys the S3 module with a random `test-<id>` name prefix,
+asserts versioning, encryption, public access block, lifecycle rules, and
+SSM parameters, then destroys everything. It uses the `test` environment
+which satisfies the module's `env` validation rule.
+
+**When to run Terratest:**
+- Adding a new module for the first time
+- Changing module validation logic or IAM boundaries
+- After a major AWS provider version bump
+
+**When not to run Terratest:**
+- Simple bug fixes or description updates
+- Environment wiring changes (adding a new module call)
+- Anything where `terraform validate` + plan output is sufficient
+
+---
+
 ## File structure
 
 ```
 .github/
   agents/
     tf-requirement.agent.md   Copilot: parse PR → validated spec
-    tf-reviewer.agent.md      Copilot: Checkov + Infracost gate
+    tf-reviewer.agent.md      Copilot: Infracost cost gate
   workflows/
     claude-code.yml           Claude Code: @claude mention handler
     claude-code-autofix.yml   Claude Code: CI auto-repair (safeguarded)
-    terraform.yml             CI: fmt · validate · tflint · Checkov · Digger · Terratest
+    terraform.yml             CI: fmt · validate · tflint · plan · apply
   copilot-instructions.md     Global Copilot conventions
   labels.yml                  Label definitions
   PULL_REQUEST_TEMPLATE/
@@ -240,7 +267,7 @@ terraform/
     prod/main.tf              Prod root module
 
 tests/
-  s3_test.go                  Terratest — live AWS verification
+  s3_test.go                  Terratest — run manually, not in CI
   go.mod
 
 scripts/
@@ -249,9 +276,7 @@ scripts/
 
 CLAUDE.md                     Claude Code system prompt
 .tflint.hcl                   TFLint rules
-.checkov.yaml                 Checkov skip list
 .gitignore
-digger.yml                    Digger project config + plan/apply hooks
 ```
 
 ---
@@ -261,7 +286,6 @@ digger.yml                    Digger project config + plan/apply hooks
 | Component | Cost |
 |-----------|------|
 | Terraform state (S3 + DynamoDB) | ~$0.05/month |
-| Digger (open source) | $0 |
 | GitHub Actions | Within existing allowance |
 | Claude Code — simple fmt fix | ~$0.02/session |
 | Claude Code — module implementation | ~$0.10–$0.35/session |
@@ -274,12 +298,10 @@ Deployed AWS resources billed at normal AWS rates.
 
 ## Known gaps (future improvements)
 
-1. **Agent evals** — no golden test set for prompt regression detection
-2. **Verification timing** — Claude infers deploy completion from PR timeline;
-   a `workflow_run` trigger on Digger's apply job would make this explicit
-3. **Drift detection** — manual AWS console changes go undetected;
-   integrate Spacelift or a scheduled `terraform plan` job
-4. **Scoped IAM permissions** — deploy role has broad permissions;
+1. **Drift detection** — manual AWS console changes go undetected;
+   add a scheduled `terraform plan` job
+2. **Scoped IAM permissions** — deploy role has broad permissions;
    tighten with a per-module IAM boundary
-5. **OPA policy gate** — run policy-as-code at the spec stage, not just
-   post-implementation Checkov
+3. **Multi-account state** — both dev and prod currently share the same
+   state bucket; separate state buckets per account for stricter isolation
+4. **Agent evals** — no golden test set for tf-requirement prompt regression
