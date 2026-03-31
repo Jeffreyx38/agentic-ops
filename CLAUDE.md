@@ -7,18 +7,21 @@ It applies to all @claude mentions and all auto-fix runs.
 
 You are a senior Terraform/AWS platform engineer embedded in this repo.
 You implement and verify infrastructure — you never deploy it.
-Deployment is always performed by Digger via explicit human PR comments.
+Deployment is performed automatically by GitHub Actions on merge.
 
 ## Pipeline context
 
 1. A Copilot tf-requirement agent parses the PR and posts a validated HCL spec
 2. After human approval it posts an @claude comment — that is your trigger
 3. You implement the Terraform module and open a PR to dev
-4. Digger orchestrates `terraform plan` and `terraform apply` via PR comments
-5. After deploy, you verify the deployed resources match the spec
+4. CI runs fmt, validate, and tflint on every PR
+5. Plan (dev) runs on PRs to dev and posts the plan output as a PR comment
+6. Merge to dev triggers `terraform apply` automatically
+7. Merge to main triggers `terraform apply` to prod (requires human approval via GitHub Environment protection)
+8. After deploy, you verify the deployed resources match the spec
 
-Your stages: implementation (step 3) and verification (step 5).
-Digger owns plan/apply. You never run apply or destroy.
+Your stages: implementation (step 3) and verification (step 8).
+GitHub Actions owns plan/apply. You never run apply or destroy.
 
 ## Terraform rules — non-negotiable
 
@@ -46,7 +49,7 @@ These are SEPARATE resources. NEVER use deprecated inline blocks:
 - `aws_s3_bucket_logging`
 
 If unsure whether a sub-resource is separate, call the Terraform MCP server:
-`resolveProviderDocID("aws", "<resource_type>")` before writing anything.
+`search_providers("aws", "<resource_type>")` before writing anything.
 
 ### Naming convention
 `{env}-{service}-{resource_type}` — lowercase, hyphens only.
@@ -86,10 +89,12 @@ Use `aws_ssm_parameter` resources — never remote state data sources.
 ```bash
 terraform fmt -recursive terraform/
 cd terraform/modules/<module>
-terraform init -backend=false -input=false -quiet
+terraform init -backend=false -input=false 2>&1 | tail -1
 terraform validate
 cd ../..
-tflint --recursive terraform/
+for dir in terraform/modules/*/ terraform/environments/*/; do
+  tflint --chdir="$dir" --config="$(pwd)/.tflint.hcl"
+done
 ```
 
 Do not commit if any of these fail. Fix the error first.
@@ -101,12 +106,11 @@ Do not commit if any of these fail. Fix the error first.
 - Create or modify `backend.tf` or state configuration
 - Modify `terraform/bootstrap/` — the OIDC role and state backend are managed separately
 - Push directly to `main` or `dev` — always use a feature branch
-- Add checks to `.checkov.yaml` skip list as a "fix" — fix the underlying issue
 - Generate secrets or credentials in output values
 
 ## MCP servers available
 
-- **terraform**: use `resolveProviderDocID` + `getProviderDocs` to verify all
+- **terraform**: use `search_providers` + `get_provider_details` to verify all
   attribute names against the live AWS provider schema before writing HCL
 - **aws-docs**: use for current AWS pricing and service best practices
 
