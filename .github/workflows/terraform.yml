@@ -89,7 +89,7 @@ jobs:
           for dir in terraform/modules/*/; do
             echo "→ $dir"
             cd "$dir"
-            terraform init -backend=false -input=false -quiet
+            terraform init -backend=false -input=false 2>&1 | tail -1
             terraform validate
             cd - > /dev/null
           done
