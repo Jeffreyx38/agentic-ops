@@ -62,8 +62,6 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - uses: diggerhq/digger@vLatest
-        with:
-          digger-token: ${{ secrets.DIGGER_TOKEN }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
