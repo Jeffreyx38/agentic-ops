@@ -8,16 +8,24 @@ Two AI systems with distinct roles:
 
 **Copilot custom agents** (structured approval gates):
 - `tf-requirement` — parses PRs, validates specs, presents human approval
-- `tf-reviewer` — Checkov + Infracost security and cost gate
+- `tf-reviewer` — cost and quality gate
 
 **Claude Code** (@claude mentions + auto-fix):
 - Implements Terraform modules after human approval
-- Auto-fixes CI failures (fmt, validate, tflint, checkov)
+- Auto-fixes CI failures (fmt, validate, tflint)
 - Responds to reviewer comments automatically
 - Verifies deployed resources post-deploy
 
 Copilot agents = structured gating. Claude Code = reactive implementation.
 Never suggest implementing code via a Copilot agent.
+
+## Pipeline flow
+
+1. PR opened → tf-requirement agent validates spec → human approves
+2. @claude implements module → CI runs fmt/validate/tflint/plan
+3. Plan output posted as PR comment for review
+4. PR merged to dev → terraform apply runs automatically
+5. PR merged to main → terraform apply runs with human approval gate (GitHub Environment)
 
 ## AWS provider 5.x — separate resources (never inline blocks)
 
@@ -59,5 +67,5 @@ All variables: `type` + `description`. All outputs: `description`.
 - Hardcode AWS account IDs or regions
 - Inline blocks deprecated in AWS provider 5.x
 - `count` for resources that have a `for_each` alternative
-- Modify `backend.tf` state configuration
+- Modify backend state configuration
 - Push directly to `main` or `dev`

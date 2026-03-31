@@ -113,7 +113,7 @@ jobs:
 
             If attempt >= 2 and the same error recurs, post [needs-human] and add label "no-autofix". STOP.
 
-            For fixable failures (fmt, validate, tflint):
+            For fixable failures (fmt, validate, tflint, plan):
             1. Read the CI logs to identify the exact failure
             2. Fix only the specific file and line that failed
             3. Run the check locally to confirm the fix works
