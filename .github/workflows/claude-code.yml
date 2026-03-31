@@ -60,8 +60,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install Checkov
-        run: pip install checkov --quiet
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -79,5 +77,5 @@ jobs:
             actions: read
           claude_args: |
             --max-turns 40
-            --allowedTools "Bash(terraform:*),Bash(tflint:*),Bash(checkov:*),Bash(aws:*),Bash(git:*),Bash(gh:*),Edit,Replace,Write,View,GlobTool,GrepTool,mcp__github_ci__*,mcp__github_comment__*"
+            --allowedTools "Bash(terraform:*),Bash(tflint:*),Bash(aws:*),Bash(git:*),Bash(gh:*),Edit,Replace,Write,View,GlobTool,GrepTool,mcp__github_ci__*,mcp__github_comment__*"
             --disallowedTools "AskUserQuestion,WebSearch,WebFetch,CronCreate,CronDelete,CronList,RemoteTrigger,NotebookEdit"

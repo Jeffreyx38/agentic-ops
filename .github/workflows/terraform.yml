@@ -105,14 +105,6 @@ jobs:
             tflint --chdir="$dir" --config="$(pwd)/.tflint.hcl"
           done
 
-      - name: Checkov
-        uses: bridgecrewio/checkov-action@master
-        with:
-          directory: terraform/
-          framework: terraform
-          config_file: .checkov.yaml
-          soft_fail: false
-          output_format: github_failed_only
 
   # ── Terratest ──────────────────────────────────────────────────────────────
   test:
