@@ -37,7 +37,12 @@ workflows:
     plan:
       steps:
         - init:
-            extra_args: ["-upgrade=false", "-reconfigure"]
+            extra_args:
+              - "-upgrade=false"
+              - "-reconfigure"
+              - "-backend-config=bucket=$TF_STATE_BUCKET"
+              - "-backend-config=dynamodb_table=$TF_LOCK_TABLE"
+              - "-backend-config=region=us-east-1"
         - plan:
             extra_args: ["-out=tfplan.binary", "-detailed-exitcode"]
         - run: terraform show -no-color tfplan.binary
@@ -46,7 +51,11 @@ workflows:
       steps:
         - run: terraform fmt -check -recursive || (echo "::error::Run terraform fmt"; exit 1)
         - init:
-            extra_args: ["-reconfigure"]
+            extra_args:
+              - "-reconfigure"
+              - "-backend-config=bucket=$TF_STATE_BUCKET"
+              - "-backend-config=dynamodb_table=$TF_LOCK_TABLE"
+              - "-backend-config=region=us-east-1" 
         - apply:
             extra_args: ["-auto-approve", "-input=false"]
         - run: terraform output -json > /tmp/tf-outputs-$DIGGER_PROJECT_NAME.json
