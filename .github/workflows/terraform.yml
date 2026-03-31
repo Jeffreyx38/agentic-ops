@@ -99,7 +99,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: tflint
-        run: tflint --recursive terraform/
+        run: |
+          for dir in terraform/modules/*/ terraform/environments/*/; do
+            echo "→ tflint $dir"
+            tflint --chdir="$dir" --config="$(pwd)/.tflint.hcl"
+          done
 
       - name: Checkov
         uses: bridgecrewio/checkov-action@master
