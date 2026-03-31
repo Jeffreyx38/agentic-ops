@@ -47,14 +47,6 @@ workflows:
   default:
     plan:
       steps:
-        - run: |
-            pip install checkov --quiet
-            checkov --directory $DIGGER_PROJECT_DIR \
-              --framework terraform \
-              --soft-fail \
-              --compact \
-              --output github_failed_only \
-              || echo "::warning::Checkov issues found — see tf-reviewer agent"
         - init:
             extra_args: ["-upgrade=false", "-reconfigure"]
         - plan:
