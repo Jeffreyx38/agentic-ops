@@ -3,6 +3,7 @@ package test
 import (
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,7 +25,7 @@ func TestS3Module(t *testing.T) {
 		region = "us-east-1"
 	}
 
-	uniqueID   := random.UniqueId()
+	uniqueID   := strings.ToLower(random.UniqueId())
 	namePrefix := fmt.Sprintf("test-%s", uniqueID)
 
 	opts := &terraform.Options{
