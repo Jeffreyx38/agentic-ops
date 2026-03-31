@@ -89,7 +89,7 @@ jobs:
           for dir in terraform/modules/*/; do
             echo "→ $dir"
             cd "$dir"
-            terraform init -backend=false -input=false -quiet
+            terraform init -backend=false -input=false 2>&1 | tail -1
             terraform validate
             cd - > /dev/null
           done
@@ -99,7 +99,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: tflint
-        run: tflint --recursive terraform/
+        run: |
+          for dir in terraform/modules/*/ terraform/environments/*/; do
+            echo "→ tflint $dir"
+            tflint --chdir="$dir" --config="$(pwd)/.tflint.hcl"
+          done
 
       - name: Checkov
         uses: bridgecrewio/checkov-action@master
