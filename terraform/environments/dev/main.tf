@@ -33,3 +33,14 @@ module "s3_media" {
 
 output "media_bucket_name" { value = module.s3_media.bucket_name }
 output "media_bucket_arn" { value = module.s3_media.bucket_arn }
+
+module "s3_logs" {
+  source                = "../../modules/s3"
+  env                   = "dev"
+  name_prefix           = "logs"
+  lifecycle_expire_days = 30
+  tags                  = { Team = "platform" }
+}
+
+output "logs_bucket_name" { value = module.s3_logs.bucket_name }
+output "logs_bucket_arn" { value = module.s3_logs.bucket_arn }
