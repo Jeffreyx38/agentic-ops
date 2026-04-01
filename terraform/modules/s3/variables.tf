@@ -21,3 +21,13 @@ variable "tags" {
   default     = {}
   description = "Additional tags merged onto all resources"
 }
+
+variable "mfa_delete" {
+  type        = string
+  default     = "Disabled"
+  description = "Enable MFA Delete on the bucket versioning configuration. Valid values: Enabled or Disabled."
+  validation {
+    condition     = contains(["Enabled", "Disabled"], var.mfa_delete)
+    error_message = "mfa_delete must be either Enabled or Disabled."
+  }
+}
