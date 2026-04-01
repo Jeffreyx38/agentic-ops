@@ -32,6 +32,13 @@ module "s3_media" {
   tags        = { Team = "platform" }
 }
 
+module "vpc" {
+  source              = "../../modules/vpc"
+  env                 = "dev"
+  flow_log_bucket_arn = "arn:aws:s3:::jzbx-flow-logs-dev-us-east-1"
+  tags                = { Team = "platform" }
+}
+
 output "media_bucket_name" {
   value       = module.s3_media.bucket_name
   description = "S3 media bucket name"
@@ -40,4 +47,19 @@ output "media_bucket_name" {
 output "media_bucket_arn" {
   value       = module.s3_media.bucket_arn
   description = "S3 media bucket ARN"
+}
+
+output "vpc_id" {
+  value       = module.vpc.vpc_id
+  description = "VPC ID"
+}
+
+output "public_subnet_ids" {
+  value       = module.vpc.public_subnet_ids
+  description = "Public subnet IDs"
+}
+
+output "private_subnet_ids" {
+  value       = module.vpc.private_subnet_ids
+  description = "Private subnet IDs"
 }
