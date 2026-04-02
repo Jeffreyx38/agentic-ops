@@ -17,13 +17,20 @@ tools:
 mcp-servers:
   terraform-mcp:
     type: stdio
-    command: npx
-    args: ["-y", "@hashicorp/terraform-mcp-server"]
+    command: docker
+    args:
+      - run
+      - -i
+      - --rm
+      - hashicorp/terraform-mcp-server
 
   aws-docs-mcp:
     type: stdio
     command: uvx
     args: ["awslabs.aws-documentation-mcp-server@latest"]
+    tools:
+      - search_documentation
+      - read_documentation
 
 model: claude-sonnet-4-20250514
 
