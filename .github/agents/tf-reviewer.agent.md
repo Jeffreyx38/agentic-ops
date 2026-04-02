@@ -18,16 +18,11 @@ mcp-servers:
     type: stdio
     command: npx
     args: ["-y", "@hashicorp/terraform-mcp-server"]
-    tools:
-      - search_providers
-      - get_provider_details
 
   aws-docs-mcp:
     type: stdio
     command: uvx
     args: ["awslabs.aws-documentation-mcp-server@latest"]
-    tools:
-      - search_documentation
 
 model: claude-sonnet-4-20250514
 
