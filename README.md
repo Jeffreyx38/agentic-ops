@@ -99,24 +99,37 @@ claude
 ### 4 — Configure MCP servers for Copilot
 
 **Settings → Copilot → Coding agent → MCP servers:**
+
+> **Requirement:** Docker must be installed and running. The official HashiCorp
+> deployment method uses the `hashicorp/terraform-mcp-server` Docker image.
+> Both the Settings JSON (for the outer Copilot session) and the agent file
+> `mcp-servers:` config (for the tf-requirement subagent) must use Docker —
+> if they are mismatched the subagent will fail to connect.
+
 ```json
 {
   "mcpServers": {
-    "terraform": {
+    "terraform-mcp": {
       "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@hashicorp/terraform-mcp-server"],
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "hashicorp/terraform-mcp-server"],
+      "env": {},
       "tools": ["search_providers", "get_provider_details", "get_latest_provider_version", "search_modules", "get_module_details"]
     },
     "aws-docs": {
       "type": "stdio",
       "command": "uvx",
       "args": ["awslabs.aws-documentation-mcp-server@latest"],
+      "env": {},
       "tools": ["search_documentation", "read_documentation", "recommend"]
     }
   }
 }
 ```
+
+> **Note:** The `tools` field is required by the GitHub Copilot agent runtime
+> schema — omitting it causes `Invalid config: "mcp-servers.<server>.tools" is
+> required` and the agent will not load.
 
 **Settings → Environments → copilot:**
 ```
@@ -157,9 +170,12 @@ immediately after merging to the default branch.
    Outputs: bucket ARN and name to SSM
    ```
 
-2. **Assign tf-requirement agent** — in the PR's Assignees sidebar select
-   `tf-requirement`. It queries the Terraform MCP server for live provider
-   schemas and posts a validated HCL spec as a PR comment.
+2. **Trigger tf-requirement agent** — two ways to invoke it:
+   - **Assignees sidebar** — select `tf-requirement` in the PR's right panel
+   - **PR comment** — post `@copilot using the tf-requirement agent, analyze this PR and post a validated Terraform spec`
+
+   The agent connects to the Terraform MCP server for live provider schema
+   verification and posts a validated HCL spec as a PR comment.
 
 3. **Review the spec.** Comment `@claude Implement the Terraform spec from
    the requirement-validated comment above.` to trigger implementation.
@@ -305,3 +321,42 @@ Deployed AWS resources billed at normal AWS rates.
 3. **Multi-account state** — both dev and prod currently share the same
    state bucket; separate state buckets per account for stricter isolation
 4. **Agent evals** — no golden test set for tf-requirement prompt regression
+
+---
+
+## Troubleshooting
+
+### terraform-mcp MCP server fails to start
+
+**Symptom:** `MCP server failed to start: MCP error -32000: Connection closed`
+in the Agents tab when tf-requirement runs.
+
+**Cause:** The `npx`-based launcher crashes on startup in the Copilot agent
+sandbox. The official HashiCorp deployment method is Docker.
+
+**Fix:** Ensure both the Settings JSON **and** the agent file use Docker:
+
+- Settings → Copilot → Coding agent → MCP servers → use `"command": "docker"`
+  with `"args": ["run", "-i", "--rm", "hashicorp/terraform-mcp-server"]`
+- `.github/agents/tf-requirement.agent.md` `mcp-servers.terraform-mcp` →
+  same Docker config
+
+Both must match. If Settings JSON uses `npx` and the agent file uses Docker
+(or vice versa), the subagent will fail even though the outer session connects.
+
+### tf-requirement agent shows "Invalid config"
+
+**Symptom:** Assignees sidebar shows
+`Invalid config: "mcp-servers.<server>.tools" is required`
+
+**Fix:** The `tools:` array is **required** in the agent file's `mcp-servers`
+config. Do not remove it, even if you think it's optional.
+
+### @copilot comment falls through to outer session
+
+**Symptom:** Log shows `Proceeding without custom agent` — the outer Copilot
+session handles the request instead of invoking tf-requirement.
+
+**Cause:** The outer session sometimes handles the request directly rather than
+delegating to the subagent. Both paths now produce a spec, but only the
+subagent path uses the Terraform MCP server for live schema verification.
