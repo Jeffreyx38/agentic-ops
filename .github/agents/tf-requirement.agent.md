@@ -17,14 +17,12 @@ tools:
 mcp-servers:
   terraform-mcp:
     type: stdio
-    command: npx
-    args: ["-y", "@hashicorp/terraform-mcp-server"]
-    tools:
-      - search_providers
-      - get_provider_details
-      - get_latest_provider_version
-      - search_modules
-      - get_module_details
+    command: docker
+    args:
+      - run
+      - -i
+      - --rm
+      - hashicorp/terraform-mcp-server
 
   aws-docs-mcp:
     type: stdio
