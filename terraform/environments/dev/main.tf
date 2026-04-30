@@ -32,6 +32,13 @@ module "s3_media" {
   tags        = { Team = "platform" }
 }
 
+module "s3_vpc_flow_logs" {
+  source      = "../../modules/s3"
+  env         = "dev"
+  name_prefix = "vpc-flow-logs"
+  tags        = { Team = "platform" }
+}
+
 output "media_bucket_name" {
   value       = module.s3_media.bucket_name
   description = "S3 media bucket name"
@@ -40,4 +47,9 @@ output "media_bucket_name" {
 output "media_bucket_arn" {
   value       = module.s3_media.bucket_arn
   description = "S3 media bucket ARN"
+}
+
+output "vpc_flow_logs_bucket_name" {
+  value       = module.s3_vpc_flow_logs.bucket_name
+  description = "S3 VPC flow logs bucket name"
 }
