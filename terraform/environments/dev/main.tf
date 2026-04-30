@@ -39,6 +39,13 @@ module "vpc" {
   tags                = { Team = "platform" }
 }
 
+module "sns_email" {
+  source      = "../../modules/sns"
+  env         = "dev"
+  name_prefix = "email"
+  tags        = { Team = "platform" }
+}
+
 output "media_bucket_name" {
   value       = module.s3_media.bucket_name
   description = "S3 media bucket name"
@@ -62,4 +69,14 @@ output "public_subnet_ids" {
 output "private_subnet_ids" {
   value       = module.vpc.private_subnet_ids
   description = "Private subnet IDs"
+}
+
+output "sns_email_topic_name" {
+  value       = module.sns_email.topic_name
+  description = "SNS email topic name"
+}
+
+output "sns_email_topic_arn" {
+  value       = module.sns_email.topic_arn
+  description = "SNS email topic ARN"
 }
